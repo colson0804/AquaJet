@@ -90,6 +90,7 @@ int main(int argc,char *argv[])
         
         //with threads
         pool_add_task(threadpool, (void*) &handle_connection, (void*) connfd);
+        handle_connection(&connfd);
     }
 }
 
