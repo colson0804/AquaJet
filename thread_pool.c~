@@ -146,11 +146,15 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 	
 	//probs do stuff
 
+
+
 	// Broadcast notify
 	printf("sending signal...\n");
 	fflush(stdout);
 	pthread_cond_signal(&(pool->notify));
  	
+
+
 	//unlock the threadpool
 	printf("unlocking threadpool...\n");
 	fflush(stdout);
