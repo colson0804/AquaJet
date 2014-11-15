@@ -56,7 +56,9 @@ int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
     i++;
   }
   if (i != pool->task_queue_size_limit) {
-    pool->queue[i] = *newTask;
+    pool->queue[i] = *(newTask);
+	printf("enqueueing at: %x\n", &(pool->queue[i]));
+	fflush(stdout);
   } else {
 	printf("enqueue failed\n");
     return 0;
@@ -70,8 +72,10 @@ int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
  *
  */
 
-pool_task_t* dequeue(pool_t *pool) {
-  pool_task_t* ret = &pool->queue[0];
+pool_task_t dequeue(pool_t *pool) {
+  pool_task_t ret = pool->queue[0];
+	printf("dequeueing, ret is: %x\n", ret);
+	printf("ret.argument: %x, ret.function: %x\n", ret.argument, ret.function);
   int i = 1;
   while (pool->queue[i].argument != NULL) {
     pool->queue[i-1] = pool->queue[i];
@@ -102,7 +106,7 @@ pool_t *pool_create(int queue_size, int num_threads)
     new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
 
 
-    if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
+    if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || pthread_mutex_init(&(new_threadpool->lock), NULL) != 0  || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
       pool_destroy(new_threadpool);
       return NULL;
     }
@@ -126,8 +130,6 @@ pool_t *pool_create(int queue_size, int num_threads)
  */
 int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 	
-	printf("pool locked, adding task...\n");
-	fflush(stdout);
 	int err = 0;
 	
 	//lock the threadpool
@@ -136,6 +138,8 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 	fflush(stdout);
 
 	//add it to the queue, even if it is empty
+	printf("function: %x, argument: %x\n", function, argument);
+
 	if (enqueue(pool, function, argument) == 0){
 		printf("queue is full\n");
 		fflush(stdout);		
@@ -143,8 +147,6 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 	}
 
 	pool->active_threads++;
-	
-	//probs do stuff
 
 	// Broadcast notify
 	printf("sending signal...\n");
@@ -199,15 +201,20 @@ static void *thread_do_work(void *pool)
 
 	while(1) {
 		pthread_mutex_lock(&(threadpool->lock));
+		
 		printf("waiting on thread %d\n", currThread);
 		fflush(stdout);
-		while((threadpool->thread_count != 0) &&(threadpool->shutdown == 0)){
+		while((threadpool->active_threads == 0) &&(threadpool->shutdown == 0)){
 			pthread_cond_wait(&(threadpool->notify), &(threadpool->lock));
 		}
+
 		printf("finished waiting on thread %d\n", currThread);
 		fflush(stdout);
 
-		pool_task_t task = *(dequeue(threadpool));
+		pool_task_t task = dequeue(threadpool);
+
+		printf("task->argument: %x, task->function: %x\n", task.argument, task.function);
+		fflush(stdout);
 
 		pthread_mutex_unlock(&(threadpool->lock));
 
@@ -218,8 +225,17 @@ static void *thread_do_work(void *pool)
 			threadpool->active_threads--;
 			printf("actual task, executing thread %d\n", currThread);
 			fflush(stdout);
-			(*(task.function))(task.argument);
+
+			(*task.function)(task.argument);
+
+			printf("finished running task\n");
+			fflush(stdout);
 		}
+		else{
+			printf("task.argument is NULL\n"); 
+			fflush(stdout);		
+		}
+
 	}
 
 	printf("exiting thread %d\n", currThread);
@@ -229,14 +245,6 @@ static void *thread_do_work(void *pool)
 }
 
 
-
-      /*
-        while((pool->count == 0) && (!pool->shutdown)){
-          pthread_cond _wait(&pool->notify), &(pool->lock);
-        }
-        something about 'someone may be there already'
-
-      */
 
 /*
 
