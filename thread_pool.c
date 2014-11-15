@@ -27,12 +27,52 @@ struct pool_t {
   pthread_mutex_t lock;
   pthread_cond_t notify;
   pthread_t *threads;
-  pool_task_t *queue;
+  pool_task_t* queue;
   int thread_count;
   int task_queue_size_limit;
 };
 
 static void *thread_do_work(void *pool);
+
+/*
+ * Add a task to the worker queue
+ *
+ */
+
+int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
+  int i = 0;
+  pool_task_t* newTask = malloc(sizeof(pool_task_t));
+  newTask->argument = argument;
+  newTask->function = function;
+  // Pointers are being really weird here, but this compiles
+  while (i < pool->task_queue_size_limit && pool->queue[i].argument != NULL) {
+    i++;
+  }
+  if (i != pool->task_queue_size_limit) {
+    pool->queue[i] = *newTask;
+  } else {
+    return 0;
+  }
+  return 1;
+}
+
+/*
+ * Remove task from worker queue
+ *
+ */
+
+pool_task_t* dequeue(pool_t *pool) {
+  pool_task_t* ret = &pool->queue[0];
+  int i = 1;
+  while (pool->queue[i].argument != NULL) {
+    pool->queue[i-1] = pool->queue[i];
+    i++;
+  }
+  pool->queue[i-1].argument = NULL;
+  pool->queue[i-1].function = NULL;
+
+  return ret;
+}
 
 
 /*
@@ -60,30 +100,21 @@ pool_t *pool_create(int queue_size, int num_threads)
  */
 int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
     int err = 0;
-    pthread_t* new_thread = malloc(sizeof(pthread_t));
+
+    // Check if room in threadpool
+    // Else add to worker queue
 
     int i = 0;
-    while((i != pool->thread_count) && (pool->threads[i] != NULL)){
+    while((i < pool->thread_count) && (pool->threads[i] != NULL)){
       i++;
     }
 
-    if (i != pool->thread_count){
+    if (i < pool->thread_count){
       err = pthread_create(&(pool->threads[i]), NULL, &thread_do_work, argument);   
     }
     else{
-      i = 0;
-      while((i != pool->task_queue_size_limit) && (pool->queue[i] != NULL)){  //THIS ISNT WORKING
-        i++;
-      }
-      if (i == pool->task_queue_size_limit){
+      if (!enqueue(pool, function, argument)) {
         return 1;
-      }
-      else{
-        pool_task_t* new_task;
-        new_task->function = function;
-        new_task->argument = argument;
-
-        pool->queue[i] = *new_task;
       }
     }
 

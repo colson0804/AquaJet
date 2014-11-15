@@ -3,6 +3,7 @@
 
 typedef struct pool_t pool_t;
 
+int enqueue(pool_t *pool, void (*function)(void *), void* argument);
 
 pool_t *pool_create(int thread_count, int queue_size);
 
