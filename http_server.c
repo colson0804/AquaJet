@@ -61,7 +61,7 @@ int main(int argc,char *argv[])
 
     // initialize the threadpool
     // Set the number of threads and size of the queue
-    threadpool = pool_create(99999999999, MAX_THREADS);
+    threadpool = pool_create(1215752191, MAX_THREADS);
 
     // Load the seats;
     load_seats(num_seats); 

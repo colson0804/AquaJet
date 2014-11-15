@@ -16,6 +16,7 @@
 
 #define MAX_THREADS 20
 #define STANDBY_SIZE 8
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 typedef struct {
     void (*function)(void *);
@@ -90,7 +91,7 @@ pool_t *pool_create(int queue_size, int num_threads)
 
     new_threadpool->queue = malloc(sizeof(pool_task_t)*queue_size);
 
-    return new_threadpool;
+    return NULL;
 }
 
 
@@ -128,6 +129,14 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 int pool_destroy(pool_t *pool)
 {
     int err = 0;
+    //int i = 0;
+
+    // for (i=0; i < pool->thread_count; i++) {
+    //   free(pool->threads[i]);
+    // }
+    // for (i=0; i < pool->task_queue_size_limit; i++) {
+    //   free(pool->queue[i]);
+    // }
 
     free(pool);
  
