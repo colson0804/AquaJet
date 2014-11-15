@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "thread_pool.h"
 
@@ -31,6 +32,7 @@ struct pool_t {
   pool_task_t* queue;
   int thread_count;
   int task_queue_size_limit;
+  int shutdown;
 };
 
 static void *thread_do_work(void *pool);
@@ -82,28 +84,31 @@ pool_task_t* dequeue(pool_t *pool) {
  */
 pool_t *pool_create(int queue_size, int num_threads)
 {
+	printf("creating pool...\n");
     pool_t* new_threadpool = (pool_t*)malloc(sizeof(pool_t));
 
     new_threadpool->task_queue_size_limit = queue_size;
     new_threadpool->thread_count = num_threads;
-
+    new_threadpool->shutdown = 0;
     new_threadpool->threads = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
 
-    new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t*)*queue_size);
+    new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
 
-    if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || new_threadpool->threads == NULL ||
-        new_threadpool->queue == NULL) {
+
+    if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
       pool_destroy(new_threadpool);
       return NULL;
     }
+	int i;
 
-    for (int i=0; i < num_threads; i++) {
+    for (i=0; i < num_threads; i++) {
       if (pthread_create(&(new_threadpool->threads[i]), NULL, thread_do_work, (void*) new_threadpool) != 0) {
         pool_destroy(new_threadpool);
         return NULL;
       }
     }
-
+	printf("returning threadpool\n");
+	fflush(stdout);
     return new_threadpool;
 }
 
@@ -113,38 +118,30 @@ pool_t *pool_create(int queue_size, int num_threads)
  *
  */
 int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
-    int err = 0;
+	
+	int err = 0;
 
-    // Check if room in threadpool
-    // Else add to worker queue
-    if (pool->queue[0].argument != NULL) {
-      // Pull and run the job
-      pool_task_t* newJob = dequeue(pool);
-      enqueue(pool, function, argument);
-    } else {
-      // Wait on condition variable
-      // Broadcast notify
-      // Check for job in queue
-      pool_task_t* newJob = NULL;
-      newJob->function = function;
-      newJob->argument = argument;
-    }
+	//lock the threadpool
+	pthread_mutex_lock(&(pool->lock));
+	
+	//add it to the queue, even if it is empty
+	if (enqueue(pool, function, argument) == 0){
+		printf("queue is full\n");		
+		return 1;	
+	}
+	
+	//feel like something should happen but not sure 
 
-    // int i = 0;
-    // while((i < pool->thread_count) && (pool->threads[i] != NULL)){
-    //   i++;
-    // }
+	// Wait on condition variable
+	
 
-    // if (i < pool->thread_count){
-    //   err = pthread_create(&(pool->threads[i]), NULL, &thread_do_work, argument);   
-    // }
-    // else{
-    //   if (!enqueue(pool, function, argument)) {
-    //     return 1;
-    //   }
-    // }
-
-    return err;
+	// Broadcast notify
+	pthread_cond_signal(&(pool->notify));
+	
+	//unlock the threadpool
+	pthread_mutex_unlock(&(pool->lock));
+ 
+	return err;
 }
 
 /*
@@ -175,9 +172,30 @@ int pool_destroy(pool_t *pool)
  *
  */
 static void *thread_do_work(void *pool)
-{ 
+{   
+	pool_t* threadpool = (pool_t*)pool;
 
-    while(1) {
+	while(1) {
+		pthread_mutex_lock(&(threadpool->lock));
+
+		while((threadpool->thread_count != 0) &&(threadpool->shutdown != 0)){
+			pthread_cond_wait(&(threadpool->notify), &(threadpool->lock));
+		}
+
+		pool_task_t task = *(dequeue(threadpool));
+
+		pthread_mutex_unlock(&(threadpool->lock));
+
+      		if(task.argument != NULL){
+			(*(task.function))(task.argument);
+		}
+	}
+
+	pthread_exit(NULL);
+	return(NULL);
+}
+
+
 
       /*
         while((pool->count == 0) && (!pool->shutdown)){
@@ -186,13 +204,6 @@ static void *thread_do_work(void *pool)
         something about 'someone may be there already'
 
       */
-        
-    }
-
-    pthread_exit(NULL);
-    return(NULL);
-}
-
 
 /*
 
