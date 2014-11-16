@@ -20,21 +20,21 @@
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 typedef struct {
-    void (*function)(void *);
-    void *argument;
+	void (*function)(void *);
+	void *argument;
 } pool_task_t;
 
 
 struct pool_t {
-  pthread_mutex_t lock;
-  pthread_cond_t notify;
-  pthread_t *threads;
-  pool_task_t* queue;
-  int thread_count;
-  int active_threads;
-  int task_queue_size_limit;
-  int queue_length;
-  int shutdown;
+	pthread_mutex_t lock;
+	pthread_cond_t notify;
+	pthread_t *threads;
+	pool_task_t* queue;
+	int thread_count;
+	int active_threads;
+	int task_queue_size_limit;
+	int queue_length;
+	int shutdown;
 };
 
 static void *thread_do_work(void *pool);
@@ -52,18 +52,18 @@ int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
 	if (pool->queue_length == pool->task_queue_size_limit){
 		printf("queue is full\n");
 		fflush(stdout);
-		return 0;	
+		return 0; 
 	}
 
 	pool->queue[pool->queue_length].argument = argument;
 	pool->queue[pool->queue_length].function = function;
 	
-	pool->queue_length++;  	
+	pool->queue_length++;   
 
 	printf("finished enqueue\n");
-	printf("queue[0] -> arg: %x, function: %x\n", pool->queue[0].argument, pool->queue[0].function);
+
 	fflush(stdout);
- 	 return 1;
+	 return 1;
 }
 
 /*
@@ -72,20 +72,20 @@ int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
  */
 
 pool_task_t dequeue(pool_t *pool) {
-  pool_task_t ret = pool->queue[0];
+	pool_task_t ret = pool->queue[0];
 	printf("dequeueing, ret is: %x\n", ret);
 	printf("ret.argument: %x, ret.function: %x\n", ret.argument, ret.function);
-  
-  int i;
+	
+	int i;
 	for(i=0; i < pool->queue_length-1; i++){
 		pool->queue[i] = pool->queue[i+1];
 	}
 	
-  pool->queue[pool->queue_length-1].argument = NULL;
-  pool->queue[pool->queue_length-1].function = NULL;
-  pool->queue_length--;
+	pool->queue[pool->queue_length-1].argument = NULL;
+	pool->queue[pool->queue_length-1].function = NULL;
+	pool->queue_length--;
 
-  return ret;
+	return ret;
 }
 
 
@@ -96,34 +96,34 @@ pool_task_t dequeue(pool_t *pool) {
 pool_t *pool_create(int queue_size, int num_threads)
 {
 	printf("creating pool...\n");
-    pool_t* new_threadpool = (pool_t*)malloc(sizeof(pool_t));
+		pool_t* new_threadpool = (pool_t*)malloc(sizeof(pool_t));
 
-    new_threadpool->task_queue_size_limit = queue_size;
-    new_threadpool->thread_count = num_threads;
-    new_threadpool->active_threads = 0;
-    new_threadpool->shutdown = 0;  
+		new_threadpool->task_queue_size_limit = queue_size;
+		new_threadpool->thread_count = num_threads;
+		new_threadpool->active_threads = 0;
+		new_threadpool->shutdown = 0;  
 	new_threadpool->queue_length = 0;
 
-    new_threadpool->threads = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
+		new_threadpool->threads = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
 
-    new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
+		new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
 
 
-    if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || pthread_mutex_init(&(new_threadpool->lock), NULL) != 0  || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
-      pool_destroy(new_threadpool);
-      return NULL;
-    }
+		if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || pthread_mutex_init(&(new_threadpool->lock), NULL) != 0  || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
+			pool_destroy(new_threadpool);
+			return NULL;
+		}
 	int i;
 
-    for (i=0; i < num_threads; i++) {
-      if (pthread_create(&(new_threadpool->threads[i]), NULL, thread_do_work, (void*) new_threadpool) != 0) {
-        pool_destroy(new_threadpool);
-        return NULL;
-      }
-    }
+		for (i=0; i < num_threads; i++) {
+			if (pthread_create(&(new_threadpool->threads[i]), NULL, thread_do_work, (void*) new_threadpool) != 0) {
+				pool_destroy(new_threadpool);
+				return NULL;
+			}
+		}
 	printf("returning threadpool\n");
 	fflush(stdout);
-    return new_threadpool;
+		return new_threadpool;
 }
 
 
@@ -145,8 +145,8 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 
 	if (enqueue(pool, function, argument) == 0){
 		printf("queue is full\n");
-		fflush(stdout);		
-		return 1;	
+		fflush(stdout);   
+		return 1; 
 	}
 
 	pool->active_threads++;
@@ -155,7 +155,7 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
 	printf("sending signal...\n");
 	fflush(stdout);
 	pthread_cond_signal(&(pool->notify));
- 	
+	
 	//unlock the threadpool
 	printf("unlocking threadpool...\n");
 	fflush(stdout);
@@ -172,19 +172,15 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
  */
 int pool_destroy(pool_t *pool)
 {
-    int err = 0;
-    //int i = 0;
+		int err = 0;
 
-    // for (i=0; i < pool->thread_count; i++) {
-    //   free(pool->threads[i]);
-    // }
-    // for (i=0; i < pool->task_queue_size_limit; i++) {
-    //   free(pool->queue[i]);
-    // }
-
-    free(pool);
- 
-    return err;
+	pthread_mutex_destroy(&(pool->lock));
+	pthread_cond_destroy(&(pool->notify));
+	free(pool->threads);
+	free(pool->queue);
+		free(pool);
+	
+		return err;
 }
 
 
@@ -215,13 +211,13 @@ static void *thread_do_work(void *pool)
 		fflush(stdout);
 
 		pool_task_t task = dequeue(threadpool);
-   
+	 
 		pthread_mutex_unlock(&(threadpool->lock));
 
 		printf("got task, unlocked thread %d\n", currThread); 
 		fflush(stdout);
 		
-      		if(task.argument != NULL){
+					if(task.argument != NULL){
 			threadpool->active_threads--;
 			printf("actual task, executing thread %d\n", currThread);
 			fflush(stdout);
@@ -233,7 +229,7 @@ static void *thread_do_work(void *pool)
 		}
 		else{
 			printf("task.argument is NULL\n"); 
-			fflush(stdout);		
+			fflush(stdout);   
 		}
 
 	}
@@ -243,30 +239,6 @@ static void *thread_do_work(void *pool)
 	pthread_exit(NULL);
 	return(NULL);
 }
-
-
-
-/*
-
-pthread_create()
-  event loop as start routine
-  pulls from queue, runs that function, waits on condition variable to fiinish
-
-create thread pool
-  structure:
-    worker queue with pending tasks
-    each threads running in loop
-
-    check for job in queue->if job, pull and run -> else wait on condition ->broadcast notify ->check for job...
-
-  when job is added, pthread_cond_signal (&(pool->notify))
-
-  ---
-
-  add locking to seats.c
-  standylist
-    - semaphore
-    */
 
 
 
