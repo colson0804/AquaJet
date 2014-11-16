@@ -33,6 +33,7 @@ struct pool_t {
   int thread_count;
   int active_threads;
   int task_queue_size_limit;
+  int queue_length;
   int shutdown;
 };
 
@@ -44,27 +45,25 @@ static void *thread_do_work(void *pool);
  */
 
 int enqueue(pool_t *pool, void (*function)(void *), void *argument) {
-  int i = 0;
+
 	printf("starting add to queue\n");
 	fflush(stdout);
 
-  pool_task_t* newTask = malloc(sizeof(pool_task_t));
-  newTask->argument = argument;
-  newTask->function = function;
-  // Pointers are being really weird here, but this compiles
-  while (i < pool->task_queue_size_limit && pool->queue[i].argument != NULL) {
-    i++;
-  }
-  if (i != pool->task_queue_size_limit) {
-    pool->queue[i] = *(newTask);
-	printf("enqueueing at: %x\n", &(pool->queue[i]));
-	fflush(stdout);
-  } else {
-	printf("enqueue failed\n");
-    return 0;
-  }
+	if (pool->queue_length == pool->task_queue_size_limit){
+		printf("queue is full\n");
+		fflush(stdout);
+		return 0;	
+	}
+
+	pool->queue[pool->queue_length].argument = argument;
+	pool->queue[pool->queue_length].function = function;
+	
+	pool->queue_length++;  	
+
 	printf("finished enqueue\n");
-  return 1;
+	printf("queue[0] -> arg: %x, function: %x\n", pool->queue[0].argument, pool->queue[0].function);
+	fflush(stdout);
+ 	 return 1;
 }
 
 /*
@@ -76,13 +75,15 @@ pool_task_t dequeue(pool_t *pool) {
   pool_task_t ret = pool->queue[0];
 	printf("dequeueing, ret is: %x\n", ret);
 	printf("ret.argument: %x, ret.function: %x\n", ret.argument, ret.function);
-  int i = 1;
-  while (pool->queue[i].argument != NULL) {
-    pool->queue[i-1] = pool->queue[i];
-    i++;
-  }
-  pool->queue[i-1].argument = NULL;
-  pool->queue[i-1].function = NULL;
+  
+  int i;
+	for(i=0; i < pool->queue_length-1; i++){
+		pool->queue[i] = pool->queue[i+1];
+	}
+	
+  pool->queue[pool->queue_length-1].argument = NULL;
+  pool->queue[pool->queue_length-1].function = NULL;
+  pool->queue_length--;
 
   return ret;
 }
@@ -100,7 +101,9 @@ pool_t *pool_create(int queue_size, int num_threads)
     new_threadpool->task_queue_size_limit = queue_size;
     new_threadpool->thread_count = num_threads;
     new_threadpool->active_threads = 0;
-    new_threadpool->shutdown = 0;
+    new_threadpool->shutdown = 0;  
+	new_threadpool->queue_length = 0;
+
     new_threadpool->threads = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
 
     new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
@@ -212,10 +215,7 @@ static void *thread_do_work(void *pool)
 		fflush(stdout);
 
 		pool_task_t task = dequeue(threadpool);
-
-		printf("task->argument: %x, task->function: %x\n", task.argument, task.function);
-		fflush(stdout);
-
+   
 		pthread_mutex_unlock(&(threadpool->lock));
 
 		printf("got task, unlocked thread %d\n", currThread); 
@@ -224,6 +224,8 @@ static void *thread_do_work(void *pool)
       		if(task.argument != NULL){
 			threadpool->active_threads--;
 			printf("actual task, executing thread %d\n", currThread);
+			fflush(stdout);
+			printf("task->argument: %x, *task->function: %x, task.function: %x\n",  task.argument, *(task.function), task.function);
 			fflush(stdout);
 
 			(*task.function)(task.argument);

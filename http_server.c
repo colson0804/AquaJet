@@ -90,6 +90,9 @@ int main(int argc,char *argv[])
         
         //without threads
 	//handle_connection(&connfd);
+	
+	printf("connfd: %d, &connfd: %x\n", connfd, &connfd);
+	fflush(stdout);
 
         //with threads
         pool_add_task(threadpool, (void*) &handle_connection, (void*) &connfd);
