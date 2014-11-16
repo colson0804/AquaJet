@@ -14,6 +14,7 @@ pthread_mutex_t seatLock;
 void list_seats(char* buf, int bufsize)
 {
 	pthread_mutex_lock(&(seatLock));
+  
     seat_t* curr = seat_header;
     int index = 0;
     while(curr != NULL && index < bufsize+ strlen("%d %c,"))
@@ -130,8 +131,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
 
 void load_seats(int number_of_seats)
 {
-
-		pthread_mutex_init(&(seatLock), NULL);	
+	pthread_mutex_init(&(seatLock), NULL);	
 
 	pthread_mutex_lock(&(seatLock));
 

@@ -225,8 +225,6 @@ static void *thread_do_work(void *pool)
 			threadpool->active_threads--;
 			printf("actual task, executing thread %d\n", currThread);
 			fflush(stdout);
-			printf("task->argument: %x, *task->function: %x, task.function: %x\n",  task.argument, *(task.function), task.function);
-			fflush(stdout);
 
 			(*task.function)(task.argument);
 
