@@ -41,14 +41,13 @@
       }
 
       function cancel() {
-	var userid = getParameterByName("user");
         var seatNum = getParameterByName("seat");
         if (seatNum == null || seatNum == "") {
           alert("No seat number specified");
           return;
         }
 
-        var l = "cancel?user=" + userid + "&seat=" + seatNum;
+        var l = "cancel?seat=" + seatNum;
         $.ajax({
           dataType: "text",
           url: l,
