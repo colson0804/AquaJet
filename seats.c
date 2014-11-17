@@ -51,6 +51,11 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
             else
             {
                 snprintf(buf, bufsize, "Seat unavailable\n\n");
+		if(curr->state == PENDING){
+			//ADD TO THE STANDBYLIST
+			//SEMWAIT		
+		}
+
             }
 		pthread_mutex_unlock(&(seatLock));
             return;
@@ -110,6 +115,9 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
                 snprintf(buf, bufsize, "Seat request cancelled: %d %c\n\n",
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = AVAILABLE;
+
+		//SEMPOST
+
             }
             else if(curr->customer_id != customer_id )
             {
