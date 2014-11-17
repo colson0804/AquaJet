@@ -172,15 +172,18 @@ int pool_add_task(pool_t *pool, void (*function)(void*), void *argument) {
  */
 int pool_destroy(pool_t *pool)
 {
-		int err = 0;
+	int err = 0;
+
+	printf("\n\n\n\nDESTROYING THE POOOOOOOOOL\n\n\n");
+	fflush(stdout);
 
 	pthread_mutex_destroy(&(pool->lock));
 	pthread_cond_destroy(&(pool->notify));
 	free(pool->threads);
 	free(pool->queue);
-		free(pool);
+	free(pool);
 	
-		return err;
+	return err;
 }
 
 
@@ -217,7 +220,7 @@ static void *thread_do_work(void *pool)
 		printf("got task, unlocked thread %d\n", currThread); 
 		fflush(stdout);
 		
-					if(task.argument != NULL){
+		if(task.argument != NULL){
 			threadpool->active_threads--;
 			printf("actual task, executing thread %d\n", currThread);
 			fflush(stdout);
