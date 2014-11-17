@@ -13,7 +13,7 @@ typedef struct standby_t {
 	seat_t* currSeat;
 	m_sem_t* sem;
 	struct standby_t* next;
-};
+} standby;
 
 int sem_wait(m_sem_t *s);
 int sem_post(m_sem_t *s);

@@ -11,7 +11,7 @@ char seat_state_to_char(seat_state_t);
 
 pthread_mutex_t seatLock;
 
-struct standby_t* standby = NULL;
+standby_t* standby = NULL;
 
 void list_seats(char* buf, int bufsize)
 {
@@ -37,6 +37,7 @@ void list_seats(char* buf, int bufsize)
 
 void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int customer_priority)
 {
+	printf("Viewing a seat\n");	
 	pthread_mutex_lock(&(seatLock));
     seat_t* curr = seat_header;
     while(curr != NULL)
@@ -53,13 +54,13 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
             }
             else if (curr->state == PENDING)
             {
-                struct standby_t* temp = standby;
+                standby_t* temp = standby;
                 while (temp != NULL) {
                     temp = temp->next;
                 }
-                temp = (struct standby_t*)malloc(sizeof(struct standby_t));
+                temp = (standby_t*)malloc(sizeof(standby_t));
                 temp->currSeat = curr;
-		temp->sem = (m_sem_t*)malloc(sizeof(struct m_sem_t));
+		temp->sem = (m_sem_t*)malloc(sizeof(m_sem_t));
                 sem_init(temp->sem, 1);
                 temp->next = NULL;
                 sem_wait(temp->sem);
@@ -86,7 +87,8 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
 
 void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
-	pthread_mutex_lock(&(seatLock));
+	printf("Confirming a seat\n");
+    pthread_mutex_lock(&(seatLock));
     seat_t* curr = seat_header;
     while(curr != NULL)
     {
@@ -94,13 +96,14 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
         {
             if(curr->state == PENDING && curr->customer_id == customer_id )
             {
-                snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
+		printf("Current seat: %d\n", curr->id);                
+		snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = OCCUPIED;
-                struct standby_t* temp = standby;
+                standby_t* temp = standby;
                 while (temp != NULL && temp->next != NULL) {
                     if (temp->next->currSeat == curr) {
-                        struct standby_t* badSeat = temp->next;
+                        standby_t* badSeat = temp->next;
                         temp->next = temp->next->next;
 			free(badSeat->sem);                        
 			free(badSeat);
@@ -128,6 +131,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
 
 void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
+	printf("Canceling a seat\n");
 	pthread_mutex_lock(&(seatLock));
     printf("Cancelling seat %d for user %d\n", seat_id, customer_id);
 
@@ -142,10 +146,10 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = AVAILABLE;
 
-                struct standby_t* temp = standby;
+                standby_t* temp = standby;
                 while (temp != NULL && temp->next != NULL) {
                     if (temp->next->currSeat == curr) {
-                        struct standby_t* badSeat = temp->next;
+                        standby_t* badSeat = temp->next;
                         temp->next = temp->next->next;
                         sem_post(badSeat->sem);
 			//free(badSeat->sem);
