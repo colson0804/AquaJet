@@ -3,6 +3,7 @@
 #include <string.h>
 #include <pthread.h>
 #include "seats.h"
+#include "semaphore.h"
 
 seat_t* seat_header = NULL;
 
@@ -10,6 +11,7 @@ char seat_state_to_char(seat_state_t);
 
 pthread_mutex_t seatLock;
 
+struct standby_t* standby = NULL;
 
 void list_seats(char* buf, int bufsize)
 {
@@ -47,6 +49,21 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = PENDING;
                 curr->customer_id = customer_id;
+
+            }
+            else if (curr->state == PENDING)
+            {
+                struct standby_t* temp = standby;
+                while (temp != NULL) {
+                    temp = temp->next;
+                }
+                temp = (struct standby_t*)malloc(sizeof(struct standby_t));
+                temp->currSeat = curr;
+		temp->sem = (m_sem_t*)malloc(sizeof(struct m_sem_t));
+                sem_init(temp->sem, 1);
+                temp->next = NULL;
+                sem_wait(temp->sem);
+                confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
             }
             else
             {
@@ -80,6 +97,15 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
                 snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = OCCUPIED;
+                struct standby_t* temp = standby;
+                while (temp != NULL && temp->next != NULL) {
+                    if (temp->next->currSeat = seat_id) {
+                        struct standby_t* badSeat = temp->next;
+                        temp->next = temp->next->next;
+			free(badSeat->sem);                        
+			free(badSeat);
+                    }
+                }
             }
             else if(curr->customer_id != customer_id )
             {
@@ -116,7 +142,18 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
                         curr->id, seat_state_to_char(curr->state));
                 curr->state = AVAILABLE;
 
-		//SEMPOST
+                struct standby_t* temp = standby;
+                while (temp != NULL && temp->next != NULL) {
+                    if (temp->next->currSeat = seat_id) {
+                        struct standby_t* badSeat = temp->next;
+                        temp->next = temp->next->next;
+                        sem_post(badSeat->sem);
+			//free(badSeat->sem);
+                        free(badSeat);
+			pthread_mutex_unlock(&(seatLock));
+			return;
+                    }
+                }
 
             }
             else if(curr->customer_id != customer_id )
