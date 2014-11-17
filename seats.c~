@@ -99,7 +99,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
                 curr->state = OCCUPIED;
                 struct standby_t* temp = standby;
                 while (temp != NULL && temp->next != NULL) {
-                    if (temp->next->currSeat == curr) {
+                    if (temp->next->currSeat == seat_id) {
                         struct standby_t* badSeat = temp->next;
                         temp->next = temp->next->next;
 			free(badSeat->sem);                        
