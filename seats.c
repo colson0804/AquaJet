@@ -54,7 +54,8 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
             }
             else if (curr->state == PENDING)
             {
-                standby_t* temp = standby;
+		printf("Searching standby list\n");                
+		standby_t* temp = standby;
                 while (temp != NULL) {
                     temp = temp->next;
                 }
@@ -64,15 +65,14 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
                 sem_init(temp->sem, 1);
                 temp->next = NULL;
                 sem_wait(temp->sem);
-                confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
+		printf("Current seat: %d\n", temp->currSeat->id);
+		printf("Next standby entry: %x\n", temp->next);
+		printf("Semaphore: %x\n", temp->sem);
+                //confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
             }
             else
             {
                 snprintf(buf, bufsize, "Seat unavailable\n\n");
-		if(curr->state == PENDING){
-			//ADD TO THE STANDBYLIST
-			//SEMWAIT		
-		}
 
             }
 		pthread_mutex_unlock(&(seatLock));

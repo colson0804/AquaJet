@@ -197,7 +197,7 @@ int threadID = 0;
 static void *thread_do_work(void *pool)
 {   
 	pool_t* threadpool = (pool_t*)pool;
-	int currThread = threadID;
+	//int currThread = threadID;
 	threadID++;
 	while(1) {
 		pthread_mutex_lock(&(threadpool->lock));
