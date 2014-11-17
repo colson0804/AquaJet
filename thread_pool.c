@@ -30,6 +30,7 @@ struct pool_t {
 	pthread_cond_t notify;
 	pthread_t *threads;
 	pool_task_t* queue;
+  pool_task_t* standby;
 	int thread_count;
 	int active_threads;
 	int task_queue_size_limit;
@@ -102,11 +103,13 @@ pool_t *pool_create(int queue_size, int num_threads)
 		new_threadpool->thread_count = num_threads;
 		new_threadpool->active_threads = 0;
 		new_threadpool->shutdown = 0;  
-	new_threadpool->queue_length = 0;
+	  new_threadpool->queue_length = 0;
 
 		new_threadpool->threads = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
 
 		new_threadpool->queue = (pool_task_t*)malloc(sizeof(pool_task_t)*queue_size);
+
+    new_threadpool->standby = (pool_task_t*)malloc(sizeof(pool_task_t)*STANDBY_SIZE);
 
 
 		if (pthread_cond_init(&(new_threadpool->notify), NULL) != 0 || pthread_mutex_init(&(new_threadpool->lock), NULL) != 0  || new_threadpool->threads == NULL || new_threadpool->queue == NULL) {
@@ -210,6 +213,8 @@ static void *thread_do_work(void *pool)
 			pthread_cond_wait(&(threadpool->notify), &(threadpool->lock));
 		}
 
+    
+    
 		printf("finished waiting on thread %d\n", currThread);
 		fflush(stdout);
 
