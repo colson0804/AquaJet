@@ -64,17 +64,20 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
 		temp->sem = (m_sem_t*)malloc(sizeof(m_sem_t));
                 sem_init(temp->sem, 1);
                 temp->next = NULL;
-                sem_wait(temp->sem);
 		printf("Current seat: %d\n", temp->currSeat->id);
-		printf("Next standby entry: %x\n", temp->next);
-		printf("Semaphore: %x\n", temp->sem);
-                //confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
+                sem_wait(temp->sem);
+		printf("Done waiting: %d\n");
+		curr->customer_id = customer_id;
+		printf("seat id: %d\n", seat_id);
+		pthread_mutex_unlock(&(seatLock));
+                confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
             }
             else
             {
                 snprintf(buf, bufsize, "Seat unavailable\n\n");
 
             }
+		
 		pthread_mutex_unlock(&(seatLock));
             return;
         }
@@ -87,14 +90,15 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
 
 void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
-	printf("Confirming a seat\n");
+	printf("Confirming seat %d\n", seat_id);
     pthread_mutex_lock(&(seatLock));
     seat_t* curr = seat_header;
     while(curr != NULL)
-    {
-        if(curr->id == seat_id)
+    {       
+	if(curr->id == seat_id)
         {
-            if(curr->state == PENDING && curr->customer_id == customer_id )
+    
+	if(curr->state == PENDING && curr->customer_id == customer_id )
             {
 		printf("Current seat: %d\n", curr->id);                
 		snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
