@@ -37,7 +37,7 @@ void list_seats(char* buf, int bufsize)
 
 void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int customer_priority)
 {
-	printf("Viewing a seat\n");	
+	printf("Customer %d viewing seat: %d\n",customer_id, seat_id);	
 	pthread_mutex_lock(&(seatLock));
     seat_t* curr = seat_header;
     while(curr != NULL)
@@ -60,17 +60,26 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
                     temp = temp->next;
                 }
                 temp = (standby_t*)malloc(sizeof(standby_t));
+		if (standby == NULL){
+			standby = temp;		
+		}
                 temp->currSeat = curr;
 		temp->sem = (m_sem_t*)malloc(sizeof(m_sem_t));
-                sem_init(temp->sem, 1);
+                
+		sem_init(temp->sem, 0);
                 temp->next = NULL;
 		printf("Current seat: %d\n", temp->currSeat->id);
-                sem_wait(temp->sem);
-		printf("Done waiting: %d\n");
-		curr->customer_id = customer_id;
-		printf("seat id: %d\n", seat_id);
 		pthread_mutex_unlock(&(seatLock));
-                confirm_seat(buf, bufsize, seat_id, customer_id, customer_priority);
+
+		printf("standby list is now: %x\n", standby);
+		fflush(stdout);
+
+                sem_wait(temp->sem);
+		pthread_mutex_lock(&(seatLock));
+		printf("Done waiting\n");
+		curr->customer_id = customer_id;
+
+		pthread_mutex_unlock(&(seatLock));
             }
             else
             {
@@ -90,7 +99,7 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
 
 void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
-	printf("Confirming seat %d\n", seat_id);
+	printf("custom %d is confirming seat %d\n",customer_id, seat_id);
     pthread_mutex_lock(&(seatLock));
     seat_t* curr = seat_header;
     while(curr != NULL)
@@ -135,33 +144,58 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
 
 void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
-	printf("Canceling a seat\n");
+	printf("customer %d is canceling seat: %d\n", customer_id, seat_id);
 	pthread_mutex_lock(&(seatLock));
-    printf("Cancelling seat %d for user %d\n", seat_id, customer_id);
 
     seat_t* curr = seat_header;
     while(curr != NULL)
     {
+
         if(curr->id == seat_id)
         {
+		printf("seat_id: %d is the same\n", seat_id);
+		fflush(stdout);
             if(curr->state == PENDING && curr->customer_id == customer_id )
             {
-                snprintf(buf, bufsize, "Seat request cancelled: %d %c\n\n",
+		printf("customer_id: %d is the same\n", customer_id);
+		fflush(stdout);
+
+                printf("Seat request cancelled: %d %c\n\n",
                         curr->id, seat_state_to_char(curr->state));
+		fflush(stdout);
                 curr->state = AVAILABLE;
 
                 standby_t* temp = standby;
-                while (temp != NULL && temp->next != NULL) {
-                    if (temp->next->currSeat == curr) {
-                        standby_t* badSeat = temp->next;
-                        temp->next = temp->next->next;
+		printf("Standby is: %x\n", standby);
+		fflush(stdout);
+		
+		if (temp != NULL && temp->currSeat == curr){
+			printf("SEMPOSTING\n");
+			fflush(stdout);
+                        standby_t* badSeat = temp;
                         sem_post(badSeat->sem);
-			//free(badSeat->sem);
                         free(badSeat);
+			temp = NULL;
 			pthread_mutex_unlock(&(seatLock));
 			return;
-                    }
-                }
+		}
+		else{                
+			while (temp != NULL && temp->next != NULL) {
+				if (temp->next->currSeat == curr) {
+					printf("SEMPOSTING\n");
+					fflush(stdout);
+                        		standby_t* badSeat = temp->next;
+                        		temp->next = temp->next->next;
+                       			sem_post(badSeat->sem);
+
+                        		free(badSeat);
+					pthread_mutex_unlock(&(seatLock));
+					return;
+                    		}
+                	}
+		}
+
+
 
             }
             else if(curr->customer_id != customer_id )
