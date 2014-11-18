@@ -22,9 +22,8 @@ int get_line(int, char*,int);
 
 int parse_int_arg(char* filename, char* arg);
 
-void handle_connection(int* connfd_ptr)
+void handle_connection(int connfd)
 {
-    int connfd = *(connfd_ptr);
 
     int fd;
     char buf[BUFSIZE+1];

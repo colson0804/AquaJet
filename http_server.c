@@ -27,7 +27,7 @@ pool_t* threadpool;
 int main(int argc,char *argv[])
 {
     int flag, num_seats = 20;
-
+	int connfd = 0;
     struct sockaddr_in serv_addr;
 
     char send_buffer[BUFSIZE];
@@ -87,8 +87,7 @@ int main(int argc,char *argv[])
 
     while(1)
     {
-        int* connfd = (int*)malloc(sizeof(int));
-	   *connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+        connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
         
         //without threads
 	//handle_connection(connfd);
